@@ -733,17 +733,17 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
   l10_time /= 1.0*n;
   total_execution_time /= 1.0*n;
 
-  printf(" average l0 time = %lf\n", l0_time );
-  printf(" average l1 time = %lf\n", l1_time );
-  printf(" average l2 time = %lf\n", l2_time );
-  printf(" average l3 time = %lf\n", l3_time );
-  printf(" average l4 time = %lf\n", l4_time );
-  printf(" average l5 time = %lf\n", l5_time );
-  printf(" average l6 time = %lf\n", l6_time );
-  printf(" average l7 time = %lf\n", l7_time );
-  printf(" average l8 time = %lf\n", l8_time );
-  printf(" average l9 time = %lf\n", l9_time );
-  printf(" average l10 time = %lf\n", l10_time );
+  printf(" average l0 time = %lf\n", l0_time/total_execution_time*100 );
+  printf(" average l1 time = %lf\n", l1_time/total_execution_time*100 );
+  printf(" average l2 time = %lf\n", l2_time/total_execution_time*100 );
+  printf(" average l3 time = %lf\n", l3_time/total_execution_time*100 );
+  printf(" average l4 time = %lf\n", l4_time/total_execution_time*100 );
+  printf(" average l5 time = %lf\n", l5_time/total_execution_time*100 );
+  printf(" average l6 time = %lf\n", l6_time/total_execution_time*100 );
+  printf(" average l7 time = %lf\n", l7_time/total_execution_time*100 );
+  printf(" average l8 time = %lf\n", l8_time/total_execution_time*100 );
+  printf(" average l9 time = %lf\n", l9_time/total_execution_time*100 );
+  printf(" average l10 time = %lf\n", l10_time/total_execution_time*100 );
   printf("average total execution time = %lf\n", total_execution_time);
 
 
