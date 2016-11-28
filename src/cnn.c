@@ -647,6 +647,19 @@ void free_batch(batch_t* v, int size) {
  * to process (start and end are inclusive).
  */
 
+static   uint64_t l0_time = 0;
+static   uint64_t l1_time = 0;
+static   uint64_t l2_time = 0;
+static   uint64_t l3_time = 0;
+static   uint64_t l4_time = 0;
+static   uint64_t l5_time = 0;
+static   uint64_t l6_time = 0;
+static   uint64_t l7_time = 0;
+static   uint64_t l8_time = 0;
+static   uint64_t l9_time = 0;
+static   uint64_t l10_time = 0;
+static   uint64_t total_execution_time  = 0;
+
 void net_forward(network_t* net, batch_t* v, int start, int end) {
   uint64_t t0 = timestamp_us();
   conv_forward(net->l0, v[0], v[1], start, end);
@@ -673,30 +686,18 @@ void net_forward(network_t* net, batch_t* v, int start, int end) {
   uint64_t t11 = timestamp_us();
 
 
-  uint64_t l0_time = t1 - t0;
-  uint64_t l1_time = t2 - t1;
-  uint64_t l2_time = t3 - t2;
-  uint64_t l3_time = t4 - t3;
-  uint64_t l4_time = t5 - t4;
-  uint64_t l5_time = t6 - t5;
-  uint64_t l6_time = t7 - t6;
-  uint64_t l7_time = t8 - t7;
-  uint64_t l8_time = t9 - t8;
-  uint64_t l9_time = t10 - t9;
-  uint64_t l10_time = t11 - t10;
-
-  printf("l0 time is %u\n", l0_time);
-  printf("l1 time is %u\n", l1_time);
-  printf("l2 time is %u\n", l2_time);
-  printf("l3 time is %u\n", l3_time);
-  printf("l4 time is %u\n", l4_time);
-  printf("l5 time is %u\n", l5_time);
-  printf("l6 time is %u\n", l6_time);
-  printf("l7 time is %u\n", l7_time);
-  printf("l8 time is %u\n", l8_time);
-  printf("l9 time is %u\n", l9_time);
-  printf("l10 time is %u\n", l10_time);
-
+  l0_time += t1 - t0;
+  l1_time += t2 - t1;
+  l2_time += t3 - t2;
+  l3_time += t4 - t3;
+  l4_time += t5 - t4;
+  l5_time += t6 - t5;
+  l6_time += t7 - t6;
+  l7_time += t8 - t7;
+  l8_time += t9 - t8;
+  l9_time += t10 - t9;
+  l10_time += t11 - t10;
+  total_execution_time += t11 - t0;
 
 }
 
@@ -718,6 +719,34 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
     net_forward(net, batch, 0, 0);
     output[i] = batch[11][0]->w[CAT_LABEL]; 
   }
+
+  l0_time /= 1.0*n;
+  l1_time /= 1.0*n;
+  l2_time /= 1.0*n;
+  l3_time /= 1.0*n;
+  l4_time /= 1.0*n;
+  l5_time /= 1.0*n;
+  l6_time /= 1.0*n;
+  l7_time /= 1.0*n;
+  l8_time /= 1.0*n;
+  l9_time /= 1.0*n;;
+  l10_time /= 1.0*n;
+  total_execution_time /= 1.0*n;
+
+  printf(" average l0 time = %u\n", l0_time );
+  printf(" average l1 time = %u\n", l1_time );
+  printf(" average l2 time = %u\n", l2_time );
+  printf(" average l3 time = %u\n", l3_time );
+  printf(" average l4 time = %u\n", l4_time );
+  printf(" average l5 time = %u\n", l5_time );
+  printf(" average l6 time = %u\n", l6_time );
+  printf(" average l7 time = %u\n", l7_time );
+  printf(" average l8 time = %u\n", l8_time );
+  printf(" average l9 time = %u\n", l9_time );
+  printf(" average l10 time = %u\n", l10_time );
+  printf("average total execution time = %u\n", );
+
+
 
   free_batch(batch, 1);
 }
