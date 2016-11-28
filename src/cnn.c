@@ -681,21 +681,21 @@ void net_forward(network_t* net, batch_t* v, int start, int end) {
   uint64_t l5_time = t6 - t5;
   uint64_t l6_time = t7 - t6;
   uint64_t l7_time = t8 - t7;
-  uint64_t l8_time = l9 - l8;
+  uint64_t l8_time = t9 - t8;
   uint64_t l9_time = t10 - t9;
   uint64_t l10_time = t11 - t10;
 
-  printf("l0 time is %d\n", l0_time);
-  printf("l1 time is %d\n", l1_time);
-  printf("l2 time is %d\n", l2_time);
-  printf("l3 time is %d\n", l3_time);
-  printf("l4 time is %d\n", l4_time);
-  printf("l5 time is %d\n", l5_time);
-  printf("l6 time is %d\n", l6_time);
-  printf("l7 time is %d\n", l7_time);
-  printf("l8 time is %d\n", l8_time);
-  printf("l9 time is %d\n", l9_time);
-  printf("l10 time is %d\n", l10_time);
+  printf("l0 time is %u\n", l0_time);
+  printf("l1 time is %u\n", l1_time);
+  printf("l2 time is %u\n", l2_time);
+  printf("l3 time is %u\n", l3_time);
+  printf("l4 time is %u\n", l4_time);
+  printf("l5 time is %u\n", l5_time);
+  printf("l6 time is %u\n", l6_time);
+  printf("l7 time is %u\n", l7_time);
+  printf("l8 time is %u\n", l8_time);
+  printf("l9 time is %u\n", l9_time);
+  printf("l10 time is %u\n", l10_time);
 
 
 }
