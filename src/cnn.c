@@ -54,7 +54,7 @@ typedef struct vol {
 } vol_t;
 
 /*
- * Set the value at a specific entry of the array.
+ * Get the value at a specific entry of the array.
  */
 
 static inline double get_vol(vol_t* v, int x, int y, int d) {
@@ -62,7 +62,7 @@ static inline double get_vol(vol_t* v, int x, int y, int d) {
 }
 
 /*
- * Get the value at a specific entry of the array.
+ * Set the value at a specific entry of the array.
  */
 
 static inline void set_vol(vol_t* v, int x, int y, int d, double val) {
@@ -648,17 +648,56 @@ void free_batch(batch_t* v, int size) {
  */
 
 void net_forward(network_t* net, batch_t* v, int start, int end) {
+  uint64_t t0 = timestamp_us();
   conv_forward(net->l0, v[0], v[1], start, end);
+  uint64_t t1 = timestamp_us();
   relu_forward(net->l1, v[1], v[2], start, end);
+  uint64_t t2 = timestamp_us();
   pool_forward(net->l2, v[2], v[3], start, end);
+  uint64_t t3 = timestamp_us();
   conv_forward(net->l3, v[3], v[4], start, end);
+  uint64_t t4 = timestamp_us();
   relu_forward(net->l4, v[4], v[5], start, end);
+  uint64_t t5 = timestamp_us();
   pool_forward(net->l5, v[5], v[6], start, end);
+  uint64_t t6 = timestamp_us();
   conv_forward(net->l6, v[6], v[7], start, end);
+  uint64_t t7 = timestamp_us();
   relu_forward(net->l7, v[7], v[8], start, end);
+  uint64_t t8 = timestamp_us();
   pool_forward(net->l8, v[8], v[9], start, end);
+  uint64_t t9 = timestamp_us();
   fc_forward(net->l9, v[9], v[10], start, end);
+  uint64_t t10 = timestamp_us();
   softmax_forward(net->l10, v[10], v[11], start, end);
+  uint64_t t11 = timestamp_us();
+
+
+  uint64_t l0_time = t1 - t0;
+  uint64_t l1_time = t2 - t1;
+  uint64_t l2_time = t3 - t2;
+  uint64_t l3_time = t4 - t3;
+  uint64_t l4_time = t5 - t4;
+  uint64_t l5_time = t6 - t5;
+  uint64_t l6_time = t7 - t6;
+  uint64_t l7_time = t8 - t7;
+  uint64_t l8_time = l9 - l8;
+  uint64_t l9_time = t10 - t9;
+  uint64_t l10_time = t11 - t10;
+
+  printf("l0 time is %d\n", l0_time);
+  printf("l1 time is %d\n", l1_time);
+  printf("l2 time is %d\n", l2_time);
+  printf("l3 time is %d\n", l3_time);
+  printf("l4 time is %d\n", l4_time);
+  printf("l5 time is %d\n", l5_time);
+  printf("l6 time is %d\n", l6_time);
+  printf("l7 time is %d\n", l7_time);
+  printf("l8 time is %d\n", l8_time);
+  printf("l9 time is %d\n", l9_time);
+  printf("l10 time is %d\n", l10_time);
+
+
 }
 
 /*
