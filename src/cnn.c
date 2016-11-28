@@ -647,18 +647,18 @@ void free_batch(batch_t* v, int size) {
  * to process (start and end are inclusive).
  */
 
-static   uint64_t l0_time = 0;
-static   uint64_t l1_time = 0;
-static   uint64_t l2_time = 0;
-static   uint64_t l3_time = 0;
-static   uint64_t l4_time = 0;
-static   uint64_t l5_time = 0;
-static   uint64_t l6_time = 0;
-static   uint64_t l7_time = 0;
-static   uint64_t l8_time = 0;
-static   uint64_t l9_time = 0;
-static   uint64_t l10_time = 0;
-static   uint64_t total_execution_time  = 0;
+static   double l0_time = 0;
+static   double l1_time = 0;
+static   double l2_time = 0;
+static   double l3_time = 0;
+static   double l4_time = 0;
+static   double l5_time = 0;
+static   double l6_time = 0;
+static   double l7_time = 0;
+static   double l8_time = 0;
+static   double l9_time = 0;
+static   double l10_time = 0;
+static   double total_execution_time  = 0;
 
 void net_forward(network_t* net, batch_t* v, int start, int end) {
   uint64_t t0 = timestamp_us();
@@ -733,18 +733,18 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
   l10_time /= 1.0*n;
   total_execution_time /= 1.0*n;
 
-  printf(" average l0 time = %u\n", l0_time );
-  printf(" average l1 time = %u\n", l1_time );
-  printf(" average l2 time = %u\n", l2_time );
-  printf(" average l3 time = %u\n", l3_time );
-  printf(" average l4 time = %u\n", l4_time );
-  printf(" average l5 time = %u\n", l5_time );
-  printf(" average l6 time = %u\n", l6_time );
-  printf(" average l7 time = %u\n", l7_time );
-  printf(" average l8 time = %u\n", l8_time );
-  printf(" average l9 time = %u\n", l9_time );
-  printf(" average l10 time = %u\n", l10_time );
-  printf("average total execution time = %u\n", total_execution_time);
+  printf(" average l0 time = %lf\n", l0_time );
+  printf(" average l1 time = %lf\n", l1_time );
+  printf(" average l2 time = %lf\n", l2_time );
+  printf(" average l3 time = %lf\n", l3_time );
+  printf(" average l4 time = %lf\n", l4_time );
+  printf(" average l5 time = %lf\n", l5_time );
+  printf(" average l6 time = %lf\n", l6_time );
+  printf(" average l7 time = %lf\n", l7_time );
+  printf(" average l8 time = %lf\n", l8_time );
+  printf(" average l9 time = %lf\n", l9_time );
+  printf(" average l10 time = %lf\n", l10_time );
+  printf("average total execution time = %lf\n", total_execution_time);
 
 
 
