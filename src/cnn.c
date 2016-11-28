@@ -744,7 +744,7 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
   printf(" average l8 time = %u\n", l8_time );
   printf(" average l9 time = %u\n", l9_time );
   printf(" average l10 time = %u\n", l10_time );
-  printf("average total execution time = %u\n", );
+  printf("average total execution time = %u\n", total_execution_time);
 
 
 
