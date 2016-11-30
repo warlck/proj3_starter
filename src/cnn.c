@@ -723,7 +723,7 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
   // printf("batch time %u\n", tab - tbb);
 
   for (int i = 0; i < n; i++) 
-    copy_vol(batch[0][i] , input[i])
+    copy_vol(batch[0][i] , input[i]);
 
   net_forward(net, batch, 0, batchSize - 1);
 
