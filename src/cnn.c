@@ -196,6 +196,7 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
     int xy_stride = l->stride;
   
     for(int d = 0; d < l->out_depth; d++) {
+      
       vol_t* f = l->filters[d];
       int x = -l->pad;
       int y = -l->pad;
@@ -722,13 +723,13 @@ void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
   // printf("batch time %u\n", tab - tbb);
 
   for (int i = 0; i < n; i++) 
-    copy_vol(batch[0][i] = input[i])
+    copy_vol(batch[0][i] , input[i])
 
   net_forward(net, batch, 0, batchSize - 1);
 
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) 
     output[i] = batch[11][i]->w[CAT_LABEL]; 
-  }
+  
 
   // l0_time /= 1.0*n;
   // l1_time /= 1.0*n;

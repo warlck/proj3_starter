@@ -1,0 +1,10 @@
+TIME: 14859.503000 ms
+
+PERFORMANCE: 161.51 Cat/s
+
+
+After using n inputs in batch:
+
+TIME: 15335.408000 ms
+
+PERFORMANCE: 156.50 Cat/s
