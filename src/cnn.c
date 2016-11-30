@@ -221,9 +221,9 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
               int ox = x + fx;
 
               if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
-                
+
                 double *fw = f->w + ((f->sx * fy)+fx)*f->depth;
-                doublw *Vw = V->w((V_sx * oy)+ox)*V->depth;
+                doublw *Vw = V->w + ((V_sx * oy)+ox)*V->depth;
 
                 for(int fd=0;fd < f->depth; fd++) {
 
