@@ -184,7 +184,10 @@ conv_layer_t* make_conv_layer(int in_sx, int in_sy, int in_depth,
 }
 
 void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
+
+  // LOOP iterating with "i"
   for (int i = start; i <= end; i++) {
+
     vol_t* V = in[i];
     vol_t* A = out[i];
         
@@ -603,7 +606,7 @@ void free_network(network_t* net) {
  * We organize data as "batches" of volumes. Each batch consists of a number of samples,
  * each of which contains a volume for every intermediate layer. Say we have L layers
  * and a set of N input images. Then batch[l][n] contains the volume at layer l for
- * input image n.
+ * input image n.2
  *
  * By using batches, we can process multiple images at once in each run of the forward
  * functions of the different layers.
@@ -661,43 +664,43 @@ static   double l10_time = 0;
 static   double total_execution_time  = 0;
 
 void net_forward(network_t* net, batch_t* v, int start, int end) {
-  uint64_t t0 = timestamp_us();
+  // uint64_t t0 = timestamp_us();
   conv_forward(net->l0, v[0], v[1], start, end);
-  uint64_t t1 = timestamp_us();
+  // uint64_t t1 = timestamp_us();
   relu_forward(net->l1, v[1], v[2], start, end);
-  uint64_t t2 = timestamp_us();
+  // uint64_t t2 = timestamp_us();
   pool_forward(net->l2, v[2], v[3], start, end);
-  uint64_t t3 = timestamp_us();
+  // uint64_t t3 = timestamp_us();
   conv_forward(net->l3, v[3], v[4], start, end);
-  uint64_t t4 = timestamp_us();
+  // uint64_t t4 = timestamp_us();
   relu_forward(net->l4, v[4], v[5], start, end);
-  uint64_t t5 = timestamp_us();
+  // uint64_t t5 = timestamp_us();
   pool_forward(net->l5, v[5], v[6], start, end);
-  uint64_t t6 = timestamp_us();
+  // uint64_t t6 = timestamp_us();
   conv_forward(net->l6, v[6], v[7], start, end);
-  uint64_t t7 = timestamp_us();
+  // uint64_t t7 = timestamp_us();
   relu_forward(net->l7, v[7], v[8], start, end);
-  uint64_t t8 = timestamp_us();
+  // uint64_t t8 = timestamp_us();
   pool_forward(net->l8, v[8], v[9], start, end);
-  uint64_t t9 = timestamp_us();
+  // uint64_t t9 = timestamp_us();
   fc_forward(net->l9, v[9], v[10], start, end);
-  uint64_t t10 = timestamp_us();
+  // uint64_t t10 = timestamp_us();
   softmax_forward(net->l10, v[10], v[11], start, end);
-  uint64_t t11 = timestamp_us();
+  // uint64_t t11 = timestamp_us();
 
 
-  l0_time += t1 - t0;
-  l1_time += t2 - t1;
-  l2_time += t3 - t2;
-  l3_time += t4 - t3;
-  l4_time += t5 - t4;
-  l5_time += t6 - t5;
-  l6_time += t7 - t6;
-  l7_time += t8 - t7;
-  l8_time += t9 - t8;
-  l9_time += t10 - t9;
-  l10_time += t11 - t10;
-  total_execution_time += t11 - t0;
+  // l0_time += t1 - t0;
+  // l1_time += t2 - t1;
+  // l2_time += t3 - t2;
+  // l3_time += t4 - t3;
+  // l4_time += t5 - t4;
+  // l5_time += t6 - t5;
+  // l6_time += t7 - t6;
+  // l7_time += t8 - t7;
+  // l8_time += t9 - t8;
+  // l9_time += t10 - t9;
+  // l10_time += t11 - t10;
+  // total_execution_time += t11 - t0;
 
 }
 
@@ -712,29 +715,33 @@ void net_forward(network_t* net, batch_t* v, int start, int end) {
 
 #define CAT_LABEL 3
 void net_classify_cats(network_t* net, vol_t** input, double* output, int n) {
-  uint64_t tbb = timestamp_us();
-  batch_t* batch = make_batch(net, 1);
-  uint64_t tab  = timestamp_us();
-  printf("batch time %u\n", tab - tbb);
+  // uint64_t tbb = timestamp_us();
+  int batchSize = n;
+  batch_t* batch = make_batch(net, batchSize);
+  // uint64_t tab  = timestamp_us();
+  // printf("batch time %u\n", tab - tbb);
+
+  for (int i = 0; i < n; i++) 
+    copy_vol(batch[0][i] = input[i])
+
+  net_forward(net, batch, 0, batchSize - 1);
 
   for (int i = 0; i < n; i++) {
-    copy_vol(batch[0][0], input[i]);
-    net_forward(net, batch, 0, 0);
-    output[i] = batch[11][0]->w[CAT_LABEL]; 
+    output[i] = batch[11][i]->w[CAT_LABEL]; 
   }
 
-  l0_time /= 1.0*n;
-  l1_time /= 1.0*n;
-  l2_time /= 1.0*n;
-  l3_time /= 1.0*n;
-  l4_time /= 1.0*n;
-  l5_time /= 1.0*n;
-  l6_time /= 1.0*n;
-  l7_time /= 1.0*n;
-  l8_time /= 1.0*n;
-  l9_time /= 1.0*n;;
-  l10_time /= 1.0*n;
-  total_execution_time /= 1.0*n;
+  // l0_time /= 1.0*n;
+  // l1_time /= 1.0*n;
+  // l2_time /= 1.0*n;
+  // l3_time /= 1.0*n;
+  // l4_time /= 1.0*n;
+  // l5_time /= 1.0*n;
+  // l6_time /= 1.0*n;
+  // l7_time /= 1.0*n;
+  // l8_time /= 1.0*n;
+  // l9_time /= 1.0*n;;
+  // l10_time /= 1.0*n;
+  // total_execution_time /= 1.0*n;
 
   // printf(" average l0 time = %lf\n", l0_time/total_execution_time*100 );
   // printf(" average l1 time = %lf\n", l1_time/total_execution_time*100 );
