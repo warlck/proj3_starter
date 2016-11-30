@@ -196,27 +196,43 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
     int xy_stride = l->stride;
   
     for(int d = 0; d < l->out_depth; d++) {
-      
+
       vol_t* f = l->filters[d];
+
       int x = -l->pad;
       int y = -l->pad;
+      
+      double wd = l->biases->w[d];
+
       for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
+
         x = -l->pad;
+
         for(int ax=0; ax < l->out_sx; x += xy_stride, ax++) {
+
           double a = 0.0;
+
           for(int fy = 0; fy < f->sy; fy++) {
+
             int oy = y + fy;
+
             for(int fx = 0; fx < f->sx; fx++) {
+
               int ox = x + fx;
+
               if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
+
                 for(int fd=0;fd < f->depth; fd++) {
+
                   a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
                 }
               }
             }
           }
-          a += l->biases->w[d];
+
+          a += wd;
           set_vol(A, ax, ay, d, a);
+
         }
       }
     }
