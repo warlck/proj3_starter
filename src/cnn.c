@@ -18,6 +18,13 @@
 // Include OpenMP
 #include <omp.h>
 
+
+
+
+
+
+
+
 // Helper functions -----------------------------------------------------------
 
 /*
@@ -183,90 +190,192 @@ conv_layer_t* make_conv_layer(int in_sx, int in_sy, int in_depth,
   return l;
 }
 
+
+conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int Vdepth,  int xy_stride, vol_t* A, int d) {
+    vol_t* f = l->filters[d];
+    int fdepth = f -> depth;
+    int fsx = f -> sx;
+    int fsy = f -> sy;
+
+    double *fwpp = f->w;
+
+    int x = -l->pad;
+    int y = -l->pad;
+
+    double wd = l->biases->w[d];
+
+    for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
+
+      x = -l->pad;
+
+      for(int ax=0; ax < l->out_sx; x += xy_stride, ax++) {
+
+        double a = 0.0;
+
+        for(int fy = 0; fy < fsy; fy++) {
+
+          int oy = y + fy;
+
+          // Preliminary calculation of fw and Vw pointers
+
+          double *fwp = fwpp + (fsx * fy)*fdepth;
+          double *Vwp = Vwpp + (V_sx * oy)*Vdepth;
+
+          for(int fx = 0; fx < fsx; fx++) {
+
+            int ox = x + fx;
+
+            if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
+
+              // double *fw = f->w + (f->sx * fy)*f->depth;
+              // double *Vw = V->w + (V_sx * oy)*V->depth ;
+
+              // fw +=  fx*f->depth;
+              // Vw +=  ox*V->depth;
+
+              double * fw = fwp + fx*fdepth;
+              double * Vw = Vwp + ox*Vdepth;
+
+              
+
+              for(int fd=0;fd < fdepth; fd++) {
+
+                // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
+                a += fw[fd]*Vw[fd];
+
+              }
+            }
+          }
+        }
+
+        a += wd;
+        set_vol(A, ax, ay, d, a);
+
+      }
+    }
+}
+
+
+void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
+  vol_t* V = in[i];
+  vol_t* A = out[i];
+      
+  int V_sx = V->sx;
+  int V_sy = V->sy;
+  int Vdepth = V -> depth;
+
+  int xy_stride = l->stride;
+
+  double *Vwpp = V->w;
+  
+  int l_out_depth = l->out_depth;
+
+  for(int d = 0; d < l_out_depth/4*4; d+=4) {
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3);
+  }
+
+    for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d);
+   }
+}
+
 void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
 
 
   // LOOP iterating with "i"
 
-  for (int i = start; i <= end; i++) {
+  for (int i = start; i < end/4*4; i += 4) {
 
-    vol_t* V = in[i];
-    vol_t* A = out[i];
+    conv_forward_iloop(l, in, out, i + 0);
+    conv_forward_iloop(l, in, out, i + 1);
+    conv_forward_iloop(l, in, out, i + 2);
+    conv_forward_iloop(l, in, out, i + 3);
+
+    // vol_t* V = in[i];
+    // vol_t* A = out[i];
         
-    int V_sx = V->sx;
-    int V_sy = V->sy;
-    int Vdepth = V -> depth;
+    // int V_sx = V->sx;
+    // int V_sy = V->sy;
+    // int Vdepth = V -> depth;
 
-    int xy_stride = l->stride;
+    // int xy_stride = l->stride;
 
-    double *Vwpp = V->w;
+    // double *Vwpp = V->w;
     
-    for(int d = 0; d < l->out_depth; d++) {
+    // for(int d = 0; d < l->out_depth; d++) {
 
-      vol_t* f = l->filters[d];
-      int fdepth = f -> depth;
-      int fsx = f -> sx;
-      int fsy = f -> sy;
+    //   vol_t* f = l->filters[d];
+    //   int fdepth = f -> depth;
+    //   int fsx = f -> sx;
+    //   int fsy = f -> sy;
 
-      double *fwpp = f->w;
+    //   double *fwpp = f->w;
 
-      int x = -l->pad;
-      int y = -l->pad;
+    //   int x = -l->pad;
+    //   int y = -l->pad;
 
-      double wd = l->biases->w[d];
+    //   double wd = l->biases->w[d];
 
-      for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
+    //   for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
 
-        x = -l->pad;
+    //     x = -l->pad;
 
-        for(int ax=0; ax < l->out_sx; x += xy_stride, ax++) {
+    //     for(int ax=0; ax < l->out_sx; x += xy_stride, ax++) {
 
-          double a = 0.0;
+    //       double a = 0.0;
 
-          for(int fy = 0; fy < fsy; fy++) {
+    //       for(int fy = 0; fy < fsy; fy++) {
 
-            int oy = y + fy;
+    //         int oy = y + fy;
 
-            // Preliminary calculation of fw and Vw pointers
+    //         // Preliminary calculation of fw and Vw pointers
 
-            double *fwp = fwpp + (fsx * fy)*fdepth;
-            double *Vwp = Vwpp + (V_sx * oy)*Vdepth;
+    //         double *fwp = fwpp + (fsx * fy)*fdepth;
+    //         double *Vwp = Vwpp + (V_sx * oy)*Vdepth;
 
-            for(int fx = 0; fx < fsx; fx++) {
+    //         for(int fx = 0; fx < fsx; fx++) {
 
-              int ox = x + fx;
+    //           int ox = x + fx;
 
-              if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
+    //           if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
 
-                // double *fw = f->w + (f->sx * fy)*f->depth;
-                // double *Vw = V->w + (V_sx * oy)*V->depth ;
+    //             // double *fw = f->w + (f->sx * fy)*f->depth;
+    //             // double *Vw = V->w + (V_sx * oy)*V->depth ;
 
-                // fw +=  fx*f->depth;
-                // Vw +=  ox*V->depth;
+    //             // fw +=  fx*f->depth;
+    //             // Vw +=  ox*V->depth;
 
-                double * fw = fwp + fx*fdepth;
-                double * Vw = Vwp + ox*Vdepth;
+    //             double * fw = fwp + fx*fdepth;
+    //             double * Vw = Vwp + ox*Vdepth;
 
                 
 
-                for(int fd=0;fd < fdepth; fd++) {
+    //             for(int fd=0;fd < fdepth; fd++) {
 
-                  // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
-                  a += fw[fd]*Vw[fd];
+    //               // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
+    //               a += fw[fd]*Vw[fd];
 
-                }
-              }
-            }
-          }
+    //             }
+    //           }
+    //         }
+    //       }
 
-          a += wd;
-          set_vol(A, ax, ay, d, a);
+    //       a += wd;
+    //       set_vol(A, ax, ay, d, a);
 
-        }
-      }
-    }
+    //     }
+    //   }
+    // }
+  } 
+
+  for (int i = end/4*4; i <= end; i++ ) {
+    conv_forward_iloop(l, in, out, i);
   }
-}
+} 
+
 
 void conv_load(conv_layer_t* l, const char* fn) {
   int sx, sy, depth, filters;
