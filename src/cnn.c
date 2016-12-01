@@ -187,6 +187,7 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
 
 
   // LOOP iterating with "i"
+
   for (int i = start; i <= end; i++) {
 
     vol_t* V = in[i];
@@ -194,6 +195,8 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
         
     int V_sx = V->sx;
     int V_sy = V->sy;
+    int Vdepth = V -> depth;
+
     int xy_stride = l->stride;
 
     double *Vwpp = V->w;
@@ -226,8 +229,8 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
 
             // Preliminary calculation of fw and Vw pointers
 
-            double *fwp = fwpp + (fsx * fy)*f->depth;
-            double *Vwp = Vwpp + (V_sx * oy)*f->depth;
+            double *fwp = fwpp + (fsx * fy)*fdepth;
+            double *Vwp = Vwpp + (V_sx * oy)*Vdepth;
 
             for(int fx = 0; fx < fsx; fx++) {
 
@@ -241,8 +244,8 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
                 // fw +=  fx*f->depth;
                 // Vw +=  ox*V->depth;
 
-                double * fw = fwp + fx*f->depth;
-                double * Vw = Vwp + ox*V->depth;
+                double * fw = fwp + fx*fdepth;
+                double * Vw = Vwp + ox*Vdepth;
 
                 
 
