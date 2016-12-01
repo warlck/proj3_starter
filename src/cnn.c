@@ -185,6 +185,7 @@ conv_layer_t* make_conv_layer(int in_sx, int in_sy, int in_depth,
 
 void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
 
+
   // LOOP iterating with "i"
   for (int i = start; i <= end; i++) {
 
@@ -194,10 +195,17 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
     int V_sx = V->sx;
     int V_sy = V->sy;
     int xy_stride = l->stride;
-  
+
+    double *Vwpp = V->w;
+    
     for(int d = 0; d < l->out_depth; d++) {
 
       vol_t* f = l->filters[d];
+      int fdepth = f -> depth;
+      int fsx = f -> sx;
+      int fsy = f -> sy;
+
+      double *fwpp = f->w;
 
       int x = -l->pad;
       int y = -l->pad;
@@ -212,20 +220,33 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
 
           double a = 0.0;
 
-          for(int fy = 0; fy < f->sy; fy++) {
+          for(int fy = 0; fy < fsy; fy++) {
 
             int oy = y + fy;
 
-            for(int fx = 0; fx < f->sx; fx++) {
+            // Preliminary calculation of fw and Vw pointers
+
+            double *fwp = fwpp + (fsx * fy)*f->depth;
+            double *Vwp = Vwpp + (V_sx * oy)*f->depth;
+
+            for(int fx = 0; fx < fsx; fx++) {
 
               int ox = x + fx;
 
               if(oy >= 0 && oy < V_sy && ox >=0 && ox < V_sx) {
 
-                double *fw = f->w + ((f->sx * fy)+fx)*f->depth;
-                double *Vw = V->w + ((V_sx * oy)+ox)*V->depth;
+                // double *fw = f->w + (f->sx * fy)*f->depth;
+                // double *Vw = V->w + (V_sx * oy)*V->depth ;
 
-                for(int fd=0;fd < f->depth; fd++) {
+                // fw +=  fx*f->depth;
+                // Vw +=  ox*V->depth;
+
+                double * fw = fwp + fx*f->depth;
+                double * Vw = Vwp + ox*V->depth;
+
+                
+
+                for(int fd=0;fd < fdepth; fd++) {
 
                   // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
                   a += fw[fd]*Vw[fd];
