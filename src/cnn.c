@@ -258,8 +258,52 @@ conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int Vdepth
 
 void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
   vol_t* V = in[i];
+
   vol_t* A = out[i];
       
+  int V_sx = V->sx;
+  int V_sy = V->sy;
+  int Vdepth = V -> depth;
+
+
+  int xy_stride = l->stride;
+
+  double *Vwpp = V->w;
+  
+  int l_out_depth = l->out_depth;
+
+  for(int d = 0; d < l_out_depth/4*4; d+=4) {
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3);
+  }
+
+    for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d);
+   }
+}
+
+void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
+  vol_t* V = in[i];
+  __m128i V0 =  _mm_loadu_si128( (__m128i *) (in + i));
+
+    vol_t* A = out[i];
+  __m128i A0 =_mm_loadu_si128( (__m128i *) (out + i));
+
+  int sxDiff = &(V->sx) - (uint64_t *)V;
+  int syDiff = &(V->sy) - (uint64_t *)V;
+  int depthDiff = &(V->depth) - (uint64_t *)V;
+ 
+  
+    
+  __m128 V_sx_diff_vector = _mm_load1_ps((float *) sxDiff);
+  __m128 V_sy_diff_vector = _mm_load1_ps((float *) syDiff);
+  __m128 V_depth_diff_vector = _mm_load1_ps((float *) depthDiff);
+
+
+
+
   int V_sx = V->sx;
   int V_sy = V->sy;
   int Vdepth = V -> depth;
