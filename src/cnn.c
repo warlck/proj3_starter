@@ -260,7 +260,7 @@ void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int V
 
 
 void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_sx,  __m128i V_sx_vector,
-               int V_sy, __m128i V_sy_vector,  __m128i V_depth_vector,  int xy_stride, __m128i A, int d) 
+               int V_sy, __m128i V_sy_vector,  __m128i V_depth_vector,  int xy_stride, __m128i A_vector, int d) 
 {
     vol_t* f = l->filters[d];
     // vol_t** lfilters = l->filters;
@@ -275,8 +275,8 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
     int x = -l->pad;
     int y = -l->pad;
 
-    __m128i wd_vector0 =  _mm_load1_pd(l->biases->w + d);
-    __m128i wd_vector1 =  _mm_load1_pd(l->biases->w + d);
+    __m128d wd_vector0 =  _mm_load1_pd(l->biases->w + d);
+  
 
 
     for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
@@ -337,19 +337,42 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
                 __m128d fwd0 = _mm_load1_pd(fw + fd);
                 __m128d fwd1 = _mm_load1_pd(fw + fd);
 
-                for (int i = 0; i < 2; i++) {
-                  double Vwd0[] = {Vw_vector}
+                double Vwd[] = {((double *)(Vw_vector[0]))[fd], ((double *)(Vw_vector[1]))[fd], ((double *)(Vw_vector[2]))[fd], ((double *)(Vw_vector[3]))[fd]};
+                __m128d Vwd0 = _mm_loadu_pd(Vwd);
+                __m128d Vwd1 = _mm_loadu_pd(Vwd + 2);
 
-                }
-                a += fw[fd]*Vw[fd];
+                a0  = _mm_add_pd(a0,_mm_mul_pd(Vwd0, fwd0));
+                a1  = _mm_add_pd(a1,_mm_mul_pd(Vwd1, fwd1));
+
+                // a += fw[fd]*Vw[fd];
 
               }
             }
           }
         }
 
-        a += wd;
-        set_vol(A, ax, ay, d, a);
+        a0 = _mm_add_pd(a0, wd_vector0);
+        a1 = _mm_add_pd(a1, wd_vector0);
+        // a += wd;
+
+        for (int i = 0; i < 2; i++) {
+          // loop chooses 0th and 2nd element of A_vector in first loop and 1st and 3rd elements 
+          // in second loop  due to our choice of 'a' values that need to be stored in respective
+          // volumes. 
+
+
+          vol_t * A0 = A_vector[i]; 
+          // double a0_val = ((double *)a0)[i];
+          double a0_val = a0[i];
+          set_vol(A0, ax, ay, d, a0_val);
+
+          vol_t * A1 = A_vector[i+2];
+          double a1_val = a1[i];
+          set_vol(A0, ax, ay, d, a1_val);
+
+        }
+
+        // set_vol(A, ax, ay, d, a);
 
       }
     }
@@ -392,7 +415,7 @@ void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int
   __m128i V0 =  _mm_loadu_si128( (__m128i *) (in + i));
 
     vol_t* A = out[i];
-  __m128i A0 =_mm_loadu_si128( (__m128i *) (out + i));
+  __m128i A_vector =_mm_loadu_si128( (__m128i *) (out + i));
  
   
   int V_sx = V->sx;
@@ -419,7 +442,8 @@ void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int
   int l_out_depth = l->out_depth;
 
   for(int d = 0; d < l_out_depth/4*4; d+=4) {
-      conv_forward_dloop_vectorized(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0);
+      conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 0);
       // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1);
       // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2);
       // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3);
