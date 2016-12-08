@@ -192,7 +192,7 @@ conv_layer_t* make_conv_layer(int in_sx, int in_sy, int in_depth,
 
 
 void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int Vdepth, 
- int xy_stride, vol_t* A, int d) 
+ int xy_stride, vol_t* A, int d, int i, int debug) 
 {
     vol_t* f = l->filters[d];
     int fdepth = f -> depth;
@@ -244,6 +244,15 @@ void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int V
               for(int fd=0;fd < fdepth; fd++) {
 
                 // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
+                // if (debug) {
+                // printf(" ===== DEBUG ========== dloop in fd ========= \n");
+                // printf(" ay = %d, ax = %d , fy = %d, fx = %d, ox = %d, oy = %d, Vdepth = %d, d = %d , V_sx = %d, V_sy = %d,  fsx = %d, fsy = %d\n",
+                //  ay, ax, fy, fx, ox, oy, Vdepth, d, V_sx, V_sy, fsx, fsy);
+                // printf(" fd = %d, Vw[fd] = %lf , i = %d \n", fd, Vw[fd], i);
+       
+                // }
+        
+
                 a += fw[fd]*Vw[fd];
 
               }
@@ -251,16 +260,18 @@ void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int V
           }
         }
 
+
         a += wd;
         set_vol(A, ax, ay, d, a);
+
 
       }
     }
 }
 
 
-void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_sx,  __m128i V_sx_vector,
-               int V_sy, __m128i V_sy_vector,  __m128i V_depth_vector,  int xy_stride, __m128i A_vector, int d) 
+void conv_forward_dloop_vectorized(conv_layer_t* l, __m256i Vwpp_vector, int V_sx,  __m256i V_sx_vector,
+               int V_sy, __m256i V_sy_vector,  __m256i V_depth_vector,  int xy_stride, __m256i A_vector, int d, int debug) 
 {
     vol_t* f = l->filters[d];
     // vol_t** lfilters = l->filters;
@@ -275,19 +286,22 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
     int x = -l->pad;
     int y = -l->pad;
 
-    __m128d wd_vector0 =  _mm_load1_pd(l->biases->w + d);
+    __m256d wd_vector =  _mm256_broadcast_sd(l->biases->w + d);
+
+    // if (debug)
+    // printf(" ===== DEBUG ========== dloop pre-ay ========= \n"); 
+
   
-
-
     for(int ay = 0; ay < l->out_sy; y += xy_stride, ay++) {
 
       x = -l->pad;
 
+      // printf(" ===== DEBUG ========== dloop pre ax ========= \n"); 
       for(int ax=0; ax < l->out_sx; x += xy_stride, ax++) {
 
-        __m128d a0 = _mm_setzero_pd();
-        __m128d a1 = _mm_setzero_pd();
+        __m256d a = _mm256_setzero_pd();
 
+        // printf(" ===== DEBUG ========== dloop pre fy ========= \n"); 
         for(int fy = 0; fy < fsy; fy++) {
 
           int oy = y + fy;
@@ -298,14 +312,22 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
 
 
           // double *Vwp = Vwpp + (V_sx * oy)*Vdepth;
-          __m128i oy_vector = _mm_set1_epi32(oy);
-          __m128i product = _mm_mullo_epi32(V_sx_vector, oy_vector);
+          // constant '8' correspond to size of double * pointer, i.e sizeof(Vwpp[0])
+          __m128i product_vector =  _mm_set1_epi64x(8*(V_sx * oy)*V_depth_vector[0]);
+
+
+          // printf("product = %d \n", product_vector[0]);
+
+          __m256i Vwp_vector;
           
-          product = _mm_mullo_epi32(product, V_depth_vector);
-          __m128i Vwp_vector = _mm_add_epi32(Vwpp_vector, product);
+
+          _mm_storeu_si128((__m128i*)&Vwp_vector, _mm_add_epi64(product_vector, ((__m128i*) &Vwpp_vector)[0]));
+          _mm_storeu_si128(((__m128i*)&Vwp_vector) + 1, _mm_add_epi64(product_vector, ((__m128i*) &Vwpp_vector)[1]));
+
+           // __m256i Vwp_vector = _mm256_add_epi64(Vwpp_vector, product_vector);
 
 
-
+          // printf(" ===== DEBUG ========== dloop pre-fx ========= \n"); 
 
           for(int fx = 0; fx < fsx; fx++) {
 
@@ -319,56 +341,73 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
               // fw +=  fx*f->depth;
               // Vw +=  ox*V->depth;
 
-              __m128i ox_vector = _mm_set1_epi32(ox); 
-
-
               double * fw = fwp + fx*fdepth;
 
-              __m128i vwproduct =  _mm_mullo_epi32(ox_vector, V_depth_vector);
-              __m128i Vw_vector = _mm_add_epi32(Vwp_vector, vwproduct);
+               // constant '8' correspond to size of double * pointer, i.e sizeof(Vwp[0])
+              __m128i vwproduct =  _mm_set1_epi64x(8*ox*V_depth_vector[0]); 
+              // printf("vwproduct = %d \n", vwproduct[0]);
+              // printf("Vw_vector[0][0] = %lf \n" , ((double *)Vwpp_vector[2])[((V_sx *0)+1)*V_depth_vector[0]+0]);
+              __m256i Vw_vector = _mm256_setzero_si256();
 
+              _mm_storeu_si128((__m128i*)&Vw_vector, _mm_add_epi64(vwproduct, ((__m128i*) &Vwp_vector)[0]));
+              _mm_storeu_si128(((__m128i*)&Vw_vector) + 1, _mm_add_epi64(vwproduct, ((__m128i*) &Vwp_vector)[1]));
+
+             
               // double * Vw = Vwp + ox*Vdepth;
 
               
+              // printf(" ===== DEBUG ========== dloop pre fd ========= \n");
 
               for(int fd=0;fd < fdepth; fd++) {
 
+
                 // a += f->w[((f->sx * fy)+fx)*f->depth+fd] * V->w[((V_sx * oy)+ox)*V->depth+fd];
-                __m128d fwd0 = _mm_load1_pd(fw + fd);
-                __m128d fwd1 = _mm_load1_pd(fw + fd);
+                __m256d fwd = _mm256_broadcast_sd(fw + fd);
 
-                double Vwd[] = {((double *)(Vw_vector[0]))[fd], ((double *)(Vw_vector[1]))[fd], ((double *)(Vw_vector[2]))[fd], ((double *)(Vw_vector[3]))[fd]};
-                __m128d Vwd0 = _mm_loadu_pd(Vwd);
-                __m128d Vwd1 = _mm_loadu_pd(Vwd + 2);
 
-                a0  = _mm_add_pd(a0,_mm_mul_pd(Vwd0, fwd0));
-                a1  = _mm_add_pd(a1,_mm_mul_pd(Vwd1, fwd1));
+                // printf(" ===== DEBUG ========== dloop in fd ========= \n");
 
-                // a += fw[fd]*Vw[fd];
 
+
+                // if (debug) {
+                // printf(" ay = %d, ax = %d , fy = %d, fx = %d, ox = %d, oy = %d, Vdepth = %d, d = %d , V_sx = %d, V_sy = %d,  fsx = %d, fsy = %d\n", 
+                //     ay, ax, fy, fx, ox, oy, V_depth_vector[0], d, V_sx, V_sy, fsx, fsy);
+
+                // printf("size of Vw_vector[0] = %d \n", sizeof(Vw_vector[0]));
+
+                // printf(" fd = %d, Vw_vector[0][fd] = %lf , Vw_vector[1][fd] = %lf, Vw_vector[2][fd] = %lf, Vw_vector[3][fd] = %lf \n", fd, ((double *)Vw_vector[0])[fd],
+                //  ((double *)Vw_vector[1])[fd], ((double *)Vw_vector[2])[fd], ((double *)Vw_vector[3])[fd]);
+
+                // }
+                
+
+                double Vwd_array[] = {((double *)(Vw_vector[0]))[fd], ((double *)(Vw_vector[1]))[fd], ((double *)(Vw_vector[2]))[fd], ((double *)(Vw_vector[3]))[fd]};
+
+                __m256d Vwd =_mm256_load_pd(Vwd_array);
+
+                a  = _mm256_add_pd(a,_mm256_mul_pd(Vwd, fwd));
+                
+
+                // a += fw[fd]*Vw[fd];   
               }
+              // printf(" ===== DEBUG ========== dloop post fd ========= \n");
             }
           }
         }
 
-        a0 = _mm_add_pd(a0, wd_vector0);
-        a1 = _mm_add_pd(a1, wd_vector0);
+        // printf(" ===== DEBUG ========== dloop post fy ========= \n");
+        a = _mm256_add_pd(a, wd_vector);
         // a += wd;
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 4; i++) {
           // loop chooses 0th and 2nd element of A_vector in first loop and 1st and 3rd elements 
           // in second loop  due to our choice of 'a' values that need to be stored in respective
           // volumes. 
 
-
-          vol_t * A0 = A_vector[i]; 
+          vol_t * A0 = (vol_t *)A_vector[i]; 
           // double a0_val = ((double *)a0)[i];
-          double a0_val = a0[i];
+          double a0_val = a[i];
           set_vol(A0, ax, ay, d, a0_val);
-
-          vol_t * A1 = A_vector[i+2];
-          double a1_val = a1[i];
-          set_vol(A0, ax, ay, d, a1_val);
 
         }
 
@@ -378,7 +417,7 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m128i Vwpp_vector, int V_s
     }
 }
 
-void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
+void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i, int debug) {
   vol_t* V = in[i];
 
   vol_t* A = out[i];
@@ -399,72 +438,111 @@ void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
   int l_out_depth = l->out_depth;
 
   for(int d = 0; d < l_out_depth/4*4; d+=4) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0, i , debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1, i , debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2, i , debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3, i , debug);
   }
 
     for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i, debug);
    }
 }
 
-void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
-  vol_t* V = in[i];
-  __m128i V0 =  _mm_loadu_si128( (__m128i *) (in + i));
+void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int i, int debug) {
 
-    vol_t* A = out[i];
-  __m128i A_vector =_mm_loadu_si128( (__m128i *) (out + i));
+  vol_t* V = in[i];
+  vol_t* A = out[i];
+
  
-  
+
+
+
+  __m256i A_vector =_mm256_loadu_si256( (__m256i *) (out + i));
+  // if (debug) {
+  //   printf(" ===== DEBUG ========== iloop ========= \n");
+  // }
+
+ 
+
   int V_sx = V->sx;
   int V_sy = V->sy;
   int Vdepth = V -> depth;
-    
-  __m128i V_sx_vector =  _mm_set1_epi32(V_sx);
-  __m128i V_sy_vector =  _mm_set1_epi32(V_sy);
-  __m128i V_depth_vector = _mm_set1_epi32(Vdepth);
 
-  
+    
+  __m256i V_sx_vector =  _mm256_set1_epi64x(V_sx);
+  __m256i V_sy_vector =  _mm256_set1_epi64x(V_sy);
+  __m256i V_depth_vector = _mm256_set1_epi64x(Vdepth);
+
+
+
+
   int xy_stride = l->stride;
 
   double *Vwpp = V->w;
   double *Vwpp_temp[] = {in[i]->w, in[i+1]->w, in[i+2]->w, in[i+3]->w};
 
-  __m128i Vwpp_vector =  _mm_loadu_si128((__m128i *) Vwpp_temp);
 
-  // int Vwpp_diff = &(V->w) - (uint64_t *)V;
+  __m256i Vwpp_vector =  _mm256_loadu_si256((__m256i *)Vwpp_temp);
 
-  // __m128i Vwpp_vector = _mm_add_epi32(V0, _mm_set1_epi32(Vwpp_diff));
 
-  
+
   int l_out_depth = l->out_depth;
 
+  // printf(" ===== DEBUG ========== iloop ========= \n");
   for(int d = 0; d < l_out_depth/4*4; d+=4) {
       conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
-        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 0);
-      // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1);
-      // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2);
-      // conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3);
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 0, debug);
+      conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 1, debug);
+      conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 2, debug);
+      conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 3, debug);
+    
   }
 
     for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i, debug);
    }
 }
 
-void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
+void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end, int debug) {
 
+  // printf("started conv_forward\n");
 
   // LOOP iterating with "i"
+  // if (!debug) {
+
+    // for (int i = start; i < end/16*16; i += 16) {
+    //   conv_forward_iloop_vectorized(l, in, out, i + 0, debug);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 4, debug);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 8, debug);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 12, debug);
+    //  }
+
+    // for (int i = end/16*16; i <= end; i++ ) {
+    //   conv_forward_iloop(l, in, out, i, debug);
+    // }
+
+  // }
+
+
+
+
+// if (debug) {
+  // printf("start is %d, end is %d\n", start, end);
 
   for (int i = start; i < end/4*4; i += 4) {
 
-    conv_forward_iloop(l, in, out, i + 0);
-    conv_forward_iloop(l, in, out, i + 1);
-    conv_forward_iloop(l, in, out, i + 2);
-    conv_forward_iloop(l, in, out, i + 3);
+    // conv_forward_iloop_vectorized(l, in, out, i + 0);
+    // conv_forward_iloop_vectorized(l, in, out, i + 4);
+    // conv_forward_iloop_vectorized(l, in, out, i + 8);
+    // conv_forward_iloop_vectorized(l, in, out, i + 12);
+    conv_forward_iloop(l, in, out, i + 0, debug);
+    conv_forward_iloop(l, in, out, i + 1, debug);
+    conv_forward_iloop(l, in, out, i + 2, debug);
+    conv_forward_iloop(l, in, out, i + 3, debug);
 
     // vol_t* V = in[i];
     // vol_t* A = out[i];
@@ -544,8 +622,12 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end) 
   } 
 
   for (int i = end/4*4; i <= end; i++ ) {
-    conv_forward_iloop(l, in, out, i);
+    conv_forward_iloop(l, in, out, i, debug);
   }
+
+// }
+
+  // printf("passed!\n");
 } 
 
 
@@ -992,19 +1074,19 @@ static   double total_execution_time  = 0;
 
 void net_forward(network_t* net, batch_t* v, int start, int end) {
   // uint64_t t0 = timestamp_us();
-  conv_forward(net->l0, v[0], v[1], start, end);
+  conv_forward(net->l0, v[0], v[1], start, end, 0);
   // uint64_t t1 = timestamp_us();
   relu_forward(net->l1, v[1], v[2], start, end);
   // uint64_t t2 = timestamp_us();
   pool_forward(net->l2, v[2], v[3], start, end);
   // uint64_t t3 = timestamp_us();
-  conv_forward(net->l3, v[3], v[4], start, end);
+  conv_forward(net->l3, v[3], v[4], start, end, 0);
   // uint64_t t4 = timestamp_us();
   relu_forward(net->l4, v[4], v[5], start, end);
   // uint64_t t5 = timestamp_us();
   pool_forward(net->l5, v[5], v[6], start, end);
   // uint64_t t6 = timestamp_us();
-  conv_forward(net->l6, v[6], v[7], start, end);
+  conv_forward(net->l6, v[6], v[7], start, end, 1);
   // uint64_t t7 = timestamp_us();
   relu_forward(net->l7, v[7], v[8], start, end);
   // uint64_t t8 = timestamp_us();
