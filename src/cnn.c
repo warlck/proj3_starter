@@ -192,7 +192,7 @@ conv_layer_t* make_conv_layer(int in_sx, int in_sy, int in_depth,
 
 
 void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int Vdepth, 
- int xy_stride, vol_t* A, int d, int i, int debug) 
+ int xy_stride, vol_t* A, int d, int i) 
 {
     vol_t* f = l->filters[d];
     int fdepth = f -> depth;
@@ -271,7 +271,7 @@ void conv_forward_dloop(conv_layer_t* l, double *Vwpp, int V_sx, int V_sy, int V
 
 
 void conv_forward_dloop_vectorized(conv_layer_t* l, __m256i Vwpp_vector, int V_sx,  __m256i V_sx_vector,
-               int V_sy, __m256i V_sy_vector,  __m256i V_depth_vector,  int xy_stride, __m256i A_vector, int d, int debug) 
+               int V_sy, __m256i V_sy_vector,  __m256i V_depth_vector,  int xy_stride, __m256i A_vector, int d) 
 {
     vol_t* f = l->filters[d];
     // vol_t** lfilters = l->filters;
@@ -319,7 +319,7 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m256i Vwpp_vector, int V_s
           // printf("product = %d \n", product_vector[0]);
 
           __m256i Vwp_vector;
-          
+
 
           _mm_storeu_si128((__m128i*)&Vwp_vector, _mm_add_epi64(product_vector, ((__m128i*) &Vwpp_vector)[0]));
           _mm_storeu_si128(((__m128i*)&Vwp_vector) + 1, _mm_add_epi64(product_vector, ((__m128i*) &Vwpp_vector)[1]));
@@ -417,7 +417,7 @@ void conv_forward_dloop_vectorized(conv_layer_t* l, __m256i Vwpp_vector, int V_s
     }
 }
 
-void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i, int debug) {
+void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
   vol_t* V = in[i];
 
   vol_t* A = out[i];
@@ -437,19 +437,21 @@ void conv_forward_iloop(conv_layer_t* l, vol_t** in, vol_t** out, int i, int deb
   
   int l_out_depth = l->out_depth;
 
+  // #pragma omp parallel for 
   for(int d = 0; d < l_out_depth/4*4; d+=4) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0, i , debug);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1, i , debug);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2, i , debug);
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3, i , debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 0, i);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 1, i);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 2, i);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d + 3, i);
   }
 
+    // #pragma omp parallel for 
     for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i, debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i);
    }
 }
 
-void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int i, int debug) {
+void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int i) {
 
   vol_t* V = in[i];
   vol_t* A = out[i];
@@ -490,20 +492,22 @@ void conv_forward_iloop_vectorized(conv_layer_t* l, vol_t** in, vol_t** out, int
   int l_out_depth = l->out_depth;
 
   // printf(" ===== DEBUG ========== iloop ========= \n");
+  #pragma omp parallel for 
   for(int d = 0; d < l_out_depth/4*4; d+=4) {
       conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
-        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 0, debug);
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 0);
       conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
-        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 1, debug);
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 1);
       conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
-        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 2, debug);
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 2);
       conv_forward_dloop_vectorized(l, Vwpp_vector, V_sx,V_sx_vector,  
-        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 3, debug);
+        V_sy, V_sy_vector, V_depth_vector, xy_stride, A_vector, d + 3);
     
   }
 
+    #pragma omp parallel for 
     for(int d = l_out_depth/4*4; d < l_out_depth; d++) {
-      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i, debug);
+      conv_forward_dloop(l, Vwpp, V_sx, V_sy, Vdepth, xy_stride, A, d, i);
    }
 }
 
@@ -515,14 +519,14 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end, 
   // if (!debug) {
 
     // for (int i = start; i < end/16*16; i += 16) {
-    //   conv_forward_iloop_vectorized(l, in, out, i + 0, debug);
-    //   conv_forward_iloop_vectorized(l, in, out, i + 4, debug);
-    //   conv_forward_iloop_vectorized(l, in, out, i + 8, debug);
-    //   conv_forward_iloop_vectorized(l, in, out, i + 12, debug);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 0);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 4);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 8);
+    //   conv_forward_iloop_vectorized(l, in, out, i + 12);
     //  }
 
     // for (int i = end/16*16; i <= end; i++ ) {
-    //   conv_forward_iloop(l, in, out, i, debug);
+    //   conv_forward_iloop(l, in, out, i);
     // }
 
   // }
@@ -532,17 +536,17 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end, 
 
 // if (debug) {
   // printf("start is %d, end is %d\n", start, end);
-
-  for (int i = start; i < end/4*4; i += 4) {
+  #pragma omp parallel for 
+    for (int i = start; i < end/4*4; i += 4) {
 
     // conv_forward_iloop_vectorized(l, in, out, i + 0);
     // conv_forward_iloop_vectorized(l, in, out, i + 4);
     // conv_forward_iloop_vectorized(l, in, out, i + 8);
     // conv_forward_iloop_vectorized(l, in, out, i + 12);
-    conv_forward_iloop(l, in, out, i + 0, debug);
-    conv_forward_iloop(l, in, out, i + 1, debug);
-    conv_forward_iloop(l, in, out, i + 2, debug);
-    conv_forward_iloop(l, in, out, i + 3, debug);
+    conv_forward_iloop(l, in, out, i + 0);
+    conv_forward_iloop(l, in, out, i + 1);
+    conv_forward_iloop(l, in, out, i + 2);
+    conv_forward_iloop(l, in, out, i + 3);
 
     // vol_t* V = in[i];
     // vol_t* A = out[i];
@@ -619,10 +623,13 @@ void conv_forward(conv_layer_t* l, vol_t** in, vol_t** out, int start, int end, 
     //     }
     //   }
     // }
-  } 
+  }
 
+  
+
+  #pragma omp parallel for 
   for (int i = end/4*4; i <= end; i++ ) {
-    conv_forward_iloop(l, in, out, i, debug);
+    conv_forward_iloop(l, in, out, i);
   }
 
 // }
@@ -691,6 +698,7 @@ relu_layer_t* make_relu_layer(int in_sx, int in_sy, int in_depth) {
 }
 
 void relu_forward(relu_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
+  #pragma omp parallel for 
   for (int j = start; j <= end; j++) {
     for (int i = 0; i < l->in_sx*l->in_sy*l->in_depth; i++) {
       out[j]->w[i] = (in[j]->w[i] < 0.0) ? 0.0 : in[j]->w[i];
@@ -742,11 +750,13 @@ pool_layer_t* make_pool_layer(int in_sx, int in_sy, int in_depth,
 }
 
 void pool_forward(pool_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
+  #pragma omp parallel for 
   for (int i = start; i <= end; i++) {
     vol_t* V = in[i];
     vol_t* A = out[i];
         
     int n=0;
+    // #pragma omp parallel for 
     for(int d=0;d<l->out_depth;d++) {
       int x = -l->pad;
       int y = -l->pad;
@@ -826,6 +836,7 @@ fc_layer_t* make_fc_layer(int in_sx, int in_sy, int in_depth,
 }
 
 void fc_forward(fc_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
+  // #pragma omp parallel for 
   for (int j = start; j <= end; j++) {
     vol_t* V = in[j];
     vol_t* A = out[j];
@@ -905,6 +916,7 @@ softmax_layer_t* make_softmax_layer(int in_sx, int in_sy, int in_depth) {
 void softmax_forward(softmax_layer_t* l, vol_t** in, vol_t** out, int start, int end) {
   double es[MAX_ES];
 
+  // #pragma omp parallel for 
   for (int j = start; j <= end; j++) {
     vol_t* V = in[j];
     vol_t* A = out[j];
@@ -1073,6 +1085,8 @@ static   double l10_time = 0;
 static   double total_execution_time  = 0;
 
 void net_forward(network_t* net, batch_t* v, int start, int end) {
+  omp_set_num_threads(4);
+
   // uint64_t t0 = timestamp_us();
   conv_forward(net->l0, v[0], v[1], start, end, 0);
   // uint64_t t1 = timestamp_us();

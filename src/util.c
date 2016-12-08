@@ -93,6 +93,8 @@ double run_classification(int* samples, int n, double** keep_output) {
   network_t* net = load_cnn_snapshot();
 
   fprintf(stderr, "Loading batches...\n");
+
+
   for (int i = 0; i < n; i++) {
     int batch = samples[i]/10000;
     if (batches[batch] == NULL) {
@@ -102,6 +104,7 @@ double run_classification(int* samples, int n, double** keep_output) {
 
   vol_t** input = (vol_t**)malloc(sizeof(vol_t*)*n);
   double* output = (double*)malloc(sizeof(double)*n);
+
 
   for (int i = 0; i < n; i++) {
     input[i] = batches[samples[i]/10000][samples[i]%10000];
